@@ -1,0 +1,68 @@
+#!/usr/bin/python
+import sys
+import os
+
+if __name__ == "__main__":
+    #must have at 4 arguments
+    len_argv = len(sys.argv)
+    list_argv = sys.argv
+
+    if(len_argv != 4):
+        sys.exit('Error: vdecrypt is missing argument/s')
+
+    key = list_argv[1]
+    plain = list_argv[2]
+    cipher = list_argv[3]
+
+
+    #check if keyfile and plaintext exist
+    if not os.path.exists(key):
+        sys.exit('Error: {} is empty'.format(key))
+    if not os.path.exists(plain):
+        sys.exit('Error: {} is empty'.format(plain))
+
+    keySize = os.stat(key).st_size
+    plainSize = os.stat(plain).st_size
+
+    # checks if keyfile and plaintext is empty 
+    if(os.stat(key).st_size == 0):
+        sys.exit('Error: {} is empty'.format(key))
+    if(os.stat(plain).st_size == 0):
+        sys.exit('Error: {} is empty'.format(plain))
+
+    #create cipher text file
+    if not os.path.exists(cipher):
+        open(cipher, 'w').close()
+
+    keyList = []
+    plainList = []
+
+    keyFile = open(key, 'rb')
+    while True:
+        keyChar = keyFile.read(1)
+        if not keyChar:
+            break
+        keyList.append(keyChar)
+    keyFile.close()
+
+    keyListSize = len(keyList)
+
+    plainFile = open(plain, 'rb')
+    while True:
+        plainChar = plainFile.read(1)
+        if not plainChar:
+            break
+        plainList.append(plainChar)
+    plainFile.close()
+
+    cipherFile = open(cipher,'w')
+    for i in range(len(plainList)):
+        keyDec = ord(keyList[i%keyListSize])
+        plainCharDec = ord(plainList[i])
+        valueDec = (plainCharDec + keyDec) % 256
+        cipherFile.write(chr(valueDec))
+
+    cipherFile.close()
+
+    
+

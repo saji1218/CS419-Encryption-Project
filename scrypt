@@ -1,0 +1,75 @@
+#!/usr/bin/python
+
+import sys
+import os
+
+
+#Linear Congruential Generator
+def lcg(seed):
+    m = 256
+    a = 1103515245
+    c = 12345
+    while True:
+        seed = (a * seed + c) % m 
+        yield seed
+
+#Convert password to seed
+def sbdm(password):
+    max = 18446744073709551615 + 1
+    hash = 0
+    for c in password:
+        hash = ord(c) + ((hash << 6) + (hash << 16)) - hash
+    
+    return hash%max
+
+
+if __name__ == "__main__":
+    #must have at 4 arguments
+    len_argv = len(sys.argv)
+    list_argv = sys.argv
+
+    if(len_argv != 4):
+        sys.exit('Error: missing argument/s')
+
+    password = list_argv[1]
+    input_argv = list_argv[2]
+    output_argv = list_argv[3]
+
+    #check if input exist
+    if not os.path.exists(input_argv):
+        sys.exit('Error: {} does not exist'.format(input_agrv))
+    
+    #check file size, if empty: Error
+    if(os.stat(input_argv).st_size == 0):
+        sys.exit('Error: {} is empty'.format(input_argv))
+
+    #create plain text file if does not exits
+    if not os.path.exists(output_argv):
+        open(output_argv, 'w').close()
+
+    seed = sbdm(password)
+    hash = lcg(seed)
+
+    # print(type(hash))
+
+    #Read in the files charByte by charByte
+    #Put into list
+    input_file = open(input_argv,'rb')
+    inputList = []
+    while 1:
+        charByte = input_file.read(1)
+        if not charByte:
+            break
+        
+        inputList.append(charByte)
+
+    #Apply stream cipher 
+    output_file = open(output_argv, 'w')
+    for i in range(len(inputList)):
+        encryption = next(hash)
+        inputDec = ord(inputList[i])
+
+        outputDec = encryption ^ inputDec
+        output_file.write(chr(outputDec))  
+
+    output_file.close()

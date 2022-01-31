@@ -1,0 +1,125 @@
+#!/usr/bin/python
+
+import sys
+import os
+import math
+import numpy as np
+
+#Linear Congruential Generator
+def lcg(seed):
+    m = 256
+    a = 1103515245
+    c = 12345
+    while True:
+        seed = (a * seed + c) % m 
+        yield seed
+
+#Convert password to seed
+def sbdm(password):
+    max = 18446744073709551615 + 1
+    hash = 0
+    for c in password:
+        hash = ord(c) + ((hash << 6) + (hash << 16)) - hash
+    
+    return hash%max
+
+if __name__ == "__main__":
+    #must have at 4 arguments
+    len_argv = len(sys.argv)
+    list_argv = sys.argv
+
+    if(len_argv != 4):
+        sys.exit('Error: scrypt.py is missing argument/s')
+
+    password = list_argv[1]
+    input_argv = list_argv[2]
+    output_argv = list_argv[3]
+
+    #check if input
+    if not os.path.exists(input_argv):
+        sys.exit('Error: {} is empty'.format(input_argv))
+
+    #check file size, if empty: Error
+    if(os.stat(input_argv).st_size == 0):
+        sys.exit('Error: {} is empty'.format(input_argv))
+
+    #create plain text file if does not exits
+    if not os.path.exists(output_argv):
+        open(output_argv, 'w').close()
+
+    seed = sbdm(password)
+    hash = lcg(seed)
+
+    # print(type(hash))
+
+    #Read in the files charByte by charByte
+    #Put into list
+    input_file = open(input_argv,'rb')
+    inputList = []
+    while 1:
+        charByte = input_file.read(1)
+        if not charByte:
+            break
+        
+        inputList.append(ord(charByte))
+
+    #get the required number of blocks needed
+    blockSize = 16
+    sizeInputList = len(inputList)
+    total_blocks = int(math.ceil(sizeInputList/16.00))
+    extra_bytes = sizeInputList % 16 # This is for padding
+    padding_bytes = blockSize - extra_bytes
+
+    #add an additional block for padding when input size is divisible 16
+    if(extra_bytes == 0):
+        total_blocks += 1
+          
+    #Add the padding to the inputList
+    for pad in range(padding_bytes):
+        inputList.append(padding_bytes)
+
+    #2D List/Array, blocks as rows and size of blocks are col
+    block_list = np.reshape(inputList,(total_blocks,blockSize))
+ 
+    #get the initialization vector for the first block 
+    prev_cipherList = []*16
+    for i in range(blockSize):
+        prev_cipherList.append(next(hash)) #elements are type long
+
+    
+    #Apply CBC 
+    output_file = open(output_argv, 'w')
+    keystreamList = []
+    for block in block_list:
+
+        #create a new keystream list for every block
+        for i in range(16):
+            keystreamList.append(next(hash))
+
+        #access the bytes per block
+        for chByte in range(len(block)):
+            block[chByte] = prev_cipherList[chByte] ^ block[chByte]
+
+            #Once all the elements in the blocked has been XOR, do the keystream swap 16 times and XOR with keydtream 
+            if(chByte == 15):
+
+                #Swap the indeces 
+                for key in keystreamList:
+                    first = key & 0xf
+                    second = (key >> 4) & 0xf
+
+                    temp = block[first]
+                    block[first] = block[second]
+                    block[second] = temp
+
+                #Second XOR with keystream and change prev_cipherList
+                for chByte2 in range(len(block)):
+                    block[chByte2] = block[chByte2] ^ keystreamList[chByte2]
+                    prev_cipherList[chByte2] = block[chByte2]
+                    output_file.write(chr(block[chByte2]))
+            
+        keystreamList[:] = []
+
+    output_file.close()
+
+ 
